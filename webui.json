@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "required_capabilities": ["custom_pages", "structured_arguments"],
+  "pages": [{
+    "id": "documents", "title": "参考文档管理", "description": "浏览服务器目录，选择并手动加载参考资料。",
+    "placement": "sidebar", "icon": "database", "mode": "custom", "entry": "management.html", "layout": "document",
+    "queries": {"status": {"api": "management_status"}},
+    "actions": {
+      "browse": {"api": "management_browse", "parameters": {"directory": {"type": "string", "max_length": 1000}}},
+      "load": {"api": "management_load", "parameters": {"names": {"type": "array", "required": true, "max_items": 40, "items": {"type": "string", "max_length": 255}}}},
+      "vectors": {"api": "management_vectors"}
+    }
+  }]
+}

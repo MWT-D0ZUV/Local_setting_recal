@@ -1,0 +1,52 @@
+<main class="maibot-page">
+<style>
+main{padding:20px;max-width:1000px;margin:auto;box-sizing:border-box}h1{font-size:22px;margin:0 0 10px}.muted{color:var(--maibot-muted,#777);font-size:14px;line-height:1.6}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}.path{flex:1;min-width:220px;padding:10px}.maibot-card{padding:18px;margin:16px 0;border:1px solid var(--maibot-border,#ccc);border-radius:10px}.files{display:grid;gap:6px;margin:14px 0}.file{display:flex;gap:10px;align-items:center;padding:10px;border-bottom:1px solid var(--maibot-border,#ddd);overflow-wrap:anywhere}.metrics{display:flex;gap:25px;flex-wrap:wrap}.metric strong{font-size:24px}.metric span{display:block;font-size:13px;color:var(--maibot-muted,#777)}#message{white-space:pre-wrap;overflow-wrap:anywhere;min-height:22px}button{font:inherit}input[type=checkbox]{width:18px;height:18px}.error{color:#c44}code{overflow-wrap:anywhere}body{margin:0}
+</style>
+<h1>参考文档管理</h1>
+<p class="muted">粘贴 MaiBot 所在电脑的绝对目录，浏览后勾选 TXT / Markdown 文件，再点击加载。浏览只列文件名；默认排除 00 开头的文件。原文不会被修改。</p>
+<section class="maibot-card">
+<label for="directory">文档目录</label>
+<div class="row"><input id="directory" class="path maibot-input" placeholder="例如 D:\资料\参考文档" autocomplete="off" maxlength="1000"><button id="browse" class="maibot-button">浏览目录</button></div>
+<p class="muted">配置中的“默认参考目录”仅用于预填。更换目录或浏览不会替换已加载资料；只有点击加载才更新快照。重启后恢复上次手动加载的快照，原文更新后需再次手动加载。</p>
+<div class="row"><button id="all" class="maibot-button">全选</button><button id="none" class="maibot-button">取消选择</button></div>
+<div id="files" class="files"><p class="muted">先点击浏览目录。</p></div>
+<div class="row"><button id="load" class="maibot-button maibot-button-primary" disabled>加载选中文档</button></div>
+<p class="muted">不勾选任何文件再点击加载，可清空已加载资料。命名建议：F 开头为事实设定，N 开头为经历，Q 开头为发言语录。</p>
+</section>
+<section class="maibot-card">
+<div class="metrics"><div class="metric"><strong id="docs">0</strong><span>已加载文档</span></div><div class="metric"><strong id="chunks">0</strong><span>文档片段</span></div><div class="metric"><strong id="vectors">0</strong><span>向量条目</span></div></div>
+<p class="muted" id="loaded">尚未加载</p>
+<div class="row"><button id="build" class="maibot-button">手动构建向量索引</button><button id="refresh" class="maibot-button">刷新状态</button></div>
+<p class="muted" id="embedding">向量索引是可选功能。启用 embedding 后，手动构建会调用已配置的 embedding 模型。</p>
+<p id="message" role="status" aria-live="polite">正在连接管理页…</p>
+</section>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+let status=null,listed=false,busy=false,timer=null,signature='',editing=false;
+const checks=()=>[...document.querySelectorAll('#files input[type=checkbox]')];
+function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error)}
+function controls(){for(const id of ['browse','load','build','all','none'])$(id).disabled=busy||((id==='load'||id==='all'||id==='none')&&!listed)||(id==='build'&&!status?.embedding?.enabled)}
+function render(s){
+ status=s;busy=Boolean(s.busy);if(!editing&&!$('directory').value)$('directory').value=s.directory||'';
+ $('docs').textContent=String(s.documents||0);$('chunks').textContent=String(s.chunks||0);$('vectors').textContent=String(s.embedding?.vectors||0);
+ $('loaded').textContent=s.loaded_directory?'已加载目录：'+s.loaded_directory+'；'+s.status:s.status;
+ $('embedding').textContent=s.embedding?.enabled?'Embedding 已启用；当前索引模型：'+(s.embedding.model||'尚未构建')+'，维度 '+(s.embedding.dimension||0)+'。构建会调用配置的 embedding 模型。':'Embedding 未启用，当前使用本地关键词检索。可在插件配置中启用后手动构建。';
+ const sig=JSON.stringify([s.directory,s.files]);
+ if(sig!==signature&&s.files){signature=sig;$('files').replaceChildren();for(const name of s.files){const label=document.createElement('label');label.className='file';const box=document.createElement('input');box.type='checkbox';box.value=name;box.checked=s.loaded_directory===s.directory&&s.selected?.includes(name);const span=document.createElement('span');span.textContent=name;label.append(box,span);$('files').append(label)}if(!s.files.length){const p=document.createElement('p');p.className='muted';p.textContent='尚无候选文件，请浏览目录。';$('files').append(p)}}
+ if(s.job?.name==='浏览目录'&&s.job.state==='done'){listed=true;$('directory').value=s.directory||'';editing=false}
+ const job=s.job;message(job?.state==='error'?job.message:(busy?job.message:s.status+(job?.state==='done'?'；'+job.message:'')),job?.state==='error');
+ controls();clearTimeout(timer);if(busy)timer=setTimeout(()=>refresh().catch(e=>message(e.message,true)),900);
+}
+async function refresh(){const s=await window.maibot.query('status');render(s)}
+async function action(name,args){if(busy)return;busy=true;controls();try{await window.maibot.action(name,args);await refresh()}catch(e){busy=false;controls();message(e.message,true)}}
+$('directory').addEventListener('input',()=>{editing=true;listed=false;controls()});
+$('browse').onclick=()=>action('browse',{directory:$('directory').value});
+$('load').onclick=()=>action('load',{names:checks().filter(x=>x.checked).map(x=>x.value)});
+$('build').onclick=()=>action('vectors',{});$('refresh').onclick=()=>refresh().catch(e=>message(e.message,true));
+$('all').onclick=()=>checks().forEach(x=>x.checked=true);$('none').onclick=()=>checks().forEach(x=>x.checked=false);
+window.maibot.ready.then(refresh).catch(e=>message(e.message,true));
+})();
+</script>
+</main>

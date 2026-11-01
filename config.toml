@@ -1,0 +1,52 @@
+[plugin]
+enabled = true
+config_version = "1.1.2"
+session_allowlist = []
+
+[documents]
+enabled = true
+directory = ""
+excluded_patterns = ["00*"]
+fallback_to_host = false
+auto_keywords = true
+max_documents = 40
+max_file_bytes = 131072
+max_total_bytes = 1048576
+
+[triggers]
+generic_enabled = true
+generic_keywords = ["设定", "档案", "世界观", "背景故事", "人设", "角色关系", "你还记得", "查一下记忆", "查询记忆"]
+query_prefix = "角色设定资料"
+rules = []
+
+[style]
+enabled = true
+on_every_reply = true
+keywords = ["说话风格", "发言风格", "语气", "措辞", "语录", "风格参考", "像你平时那样", "口吻"]
+query = "角色日常语录 说话语气 自然简短表达"
+
+[retrieval]
+max_fact_queries = 1
+result_limit = 4
+max_query_chars = 220
+max_reference_chars = 2200
+query_timeout_seconds = 3.0
+total_budget_seconds = 5.0
+cache_ttl_seconds = 300.0
+recent_reference_max_age_seconds = 300.0
+empty_cache_seconds = 20.0
+max_message_age_seconds = 86400.0
+log_enabled = true
+
+[batch]
+size = 20
+use_host_threshold = false
+job_timeout_seconds = 120.0
+
+[embedding]
+enabled = true
+task_name = "embedding"
+min_similarity = 0.4
+relative_margin = 0.08
+batch_size = 8
+timeout_seconds = 20.0
